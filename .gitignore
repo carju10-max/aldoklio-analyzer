@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+library/
+Chats/
+.claude/
+*.bat
+*.sh
+.env
+*.log
