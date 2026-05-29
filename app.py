@@ -327,8 +327,8 @@ function scheduleMetro(from){
     if(!metroBuf)metroBuf=makeMetroBuf();
     const iv=60/(BPM*metroMult);
     const beatsPerBar=Math.round(TIMESIG*metroMult);
-    // índice del primer beat >= from, usando BEAT_OFFSET como ancla real
-    const n0=Math.ceil((from-BEAT_OFFSET)/iv);
+    // índice del primer beat >= from, nunca antes de BEAT_OFFSET (n>=0)
+    const n0=Math.max(0,Math.ceil((from-BEAT_OFFSET)/iv));
     const nEnd=Math.ceil((DURATION-BEAT_OFFSET)/iv);
     for(let n=n0;n<nEnd;n++){
         const bt=BEAT_OFFSET+n*iv;
