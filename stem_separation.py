@@ -126,7 +126,7 @@ def separate_stems(
     except ImportError as exc:
         raise ImportError("demucs no disponible. Instálalo con:\n  pip install demucs") from exc
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'  # TODO: 'cuda' cuando HF actualice PyTorch con soporte Blackwell
 
     # Cache device-agnostic: apply_model maneja la transferencia al device internamente
     if model_name in _MODEL_CACHE:
