@@ -596,7 +596,7 @@ footer { display:none !important; }
     font-weight:300;
 }
 
-#item-id-box { display:none !important; }
+#item-id-box { position:fixed; left:-9999px; top:0; width:1px; height:1px; overflow:hidden; opacity:0; }
 input[type=checkbox] { accent-color:#c084fc; }
 """
 
