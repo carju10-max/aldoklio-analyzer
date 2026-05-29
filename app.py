@@ -478,10 +478,10 @@ window.addEventListener('resize',()=>setTimeout(drawAll,100));
         f"</body></html>"
     )
 
-    # Wrap in an iframe to isolate the Web Audio context from Gradio's page
-    encoded = base64.b64encode(html.encode()).decode()
+    # srcdoc evita el bloqueo de data: URIs por CSP en HF Spaces
+    escaped = html.replace('&', '&amp;').replace('"', '&quot;')
     return (
-        f'<iframe src="data:text/html;base64,{encoded}" '
+        f'<iframe srcdoc="{escaped}" '
         f'style="width:100%;height:{comp_h}px;border:none;border-radius:10px;'
         f'background:#0a0a0a" scrolling="no"></iframe>'
     )
