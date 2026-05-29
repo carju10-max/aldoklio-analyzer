@@ -567,6 +567,8 @@ def _render_log(log: list) -> str:
 
 GRADIO_CSS = """
 footer { display:none !important; }
+/* Ocultar cabeceras de tabs — navegación controlada por botones */
+div[role="tablist"] { display:none !important; }
 
 .top-nav {
     display:flex; align-items:center;
@@ -600,221 +602,173 @@ ALL_SCREENS = 4  # library, upload, instruments, detail
 
 with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
-    # ── State ──────────────────────────────────────────────────────────────────
-    library_st    = gr.State(_load_library())
-    pending_st    = gr.State({})
-    detail_item_st = gr.State(None)
+    library_st = gr.State(_load_library())
+    pending_st = gr.State({})
 
-    # ── Top nav ────────────────────────────────────────────────────────────────
-    gr.HTML("""
-    <div class='top-nav'>
-        <div class='top-nav-logo'>Aldo&amp;Klio<span> Analyzer</span></div>
-    </div>
-    """)
+    gr.HTML("<div class='top-nav'><div class='top-nav-logo'>Aldo&amp;Klio<span> Analyzer</span></div></div>")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SCREEN 1 — LIBRARY
-    # ══════════════════════════════════════════════════════════════════════════
-    with gr.Group(visible=True) as scr_lib:
-        with gr.Row():
-            gr.HTML("<h2 style='color:#fff;font-size:1.2rem;font-weight:600;margin:0;padding:4px 0'>Separación de pistas</h2>")
-            add_btn = gr.Button("+ Agregar", variant="primary", scale=0, min_width=130)
+    # ── Navegación con gr.Tabs (cabeceras ocultas via CSS) ───────────────────
+    with gr.Tabs(selected=0, elem_id="screens") as screens:
 
-        lib_html   = gr.HTML(build_library_html(_load_library()))
-        item_id_box = gr.Textbox(visible=False, elem_id="item-id-box")
+        # ── TAB 0: LIBRARY ───────────────────────────────────────────────────
+        with gr.Tab("", id=0):
+            with gr.Row():
+                gr.HTML("<h2 style='font-size:1.2rem;font-weight:600;margin:0;padding:4px 0'>Separación de pistas</h2>")
+                add_btn = gr.Button("+ Agregar", variant="primary", scale=0, min_width=130)
+            lib_html    = gr.HTML(build_library_html(_load_library()))
+            item_id_box = gr.Textbox(visible=False, elem_id="item-id-box")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SCREEN 2 — UPLOAD
-    # ══════════════════════════════════════════════════════════════════════════
-    with gr.Group(visible=False) as scr_upload:
-        back_new_btn = gr.Button("← Volver", size="sm", scale=0)
-        gr.HTML("<h2 style='color:#fff;font-size:1.12rem;font-weight:600;margin:12px 0'>Agregar archivo</h2>")
-        file_in = gr.File(
-            label="Arrastra un archivo aquí o haz clic para seleccionar",
-            file_types=[".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aiff",
-                        ".mp4", ".mkv", ".avi", ".mov", ".webm"],
-        )
-        continue_btn = gr.Button("Continuar →", variant="primary")
+        # ── TAB 1: UPLOAD ────────────────────────────────────────────────────
+        with gr.Tab("", id=1):
+            back_new_btn = gr.Button("← Volver", size="sm", scale=0)
+            gr.HTML("<h2 style='font-size:1.12rem;font-weight:600;margin:12px 0'>Agregar archivo</h2>")
+            file_in = gr.File(
+                label="Seleccionar archivo de audio o video",
+                file_types=[".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aiff",
+                            ".mp4", ".mkv", ".avi", ".mov", ".webm"],
+            )
+            continue_btn = gr.Button("Continuar →", variant="primary")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SCREEN 3 — INSTRUMENTS
-    # ══════════════════════════════════════════════════════════════════════════
-    with gr.Group(visible=False) as scr_instr:
-        back_instr_btn = gr.Button("← Volver", size="sm", scale=0)
-        gr.HTML("<h1 style='font-size:1.7rem;font-weight:800;color:#fff;margin:12px 0 4px;letter-spacing:-.5px'>Separar pistas</h1>")
-        instr_file_html = gr.HTML()
+        # ── TAB 2: INSTRUMENTS ───────────────────────────────────────────────
+        with gr.Tab("", id=2):
+            back_instr_btn = gr.Button("← Volver", size="sm", scale=0)
+            gr.HTML("<h1 style='font-size:1.7rem;font-weight:800;margin:12px 0 4px'>Separar pistas</h1>")
+            instr_file_html = gr.HTML()
+            with gr.Row():
+                preset_4_btn = gr.Button("Voz · Batería · Bajo · Otro  (4 pistas)", variant="primary")
+                preset_2_btn = gr.Button("Voz · Instrumental  (2 pistas)", variant="secondary")
+            stem_checks = gr.CheckboxGroup(
+                choices=[('Voces','vocals'),('Batería','drums'),('Bajo','bass'),
+                         ('Otro','other'),('Guitarra ★6 pistas','guitar'),('Piano ★6 pistas','piano')],
+                value=DEFAULT_STEMS, label="Personalizado",
+            )
+            start_btn    = gr.Button("Empezar separación", variant="primary", size="lg")
+            progress_out = gr.HTML()
 
-        with gr.Row():
-            preset_4_btn = gr.Button("Voz · Batería · Bajo · Otro  (4 pistas)", variant="primary")
-            preset_2_btn = gr.Button("Voz · Instrumental  (2 pistas)", variant="secondary")
+        # ── TAB 3: DETAIL ────────────────────────────────────────────────────
+        with gr.Tab("", id=3):
+            with gr.Row():
+                back_detail_btn = gr.Button("← Volver", size="sm", scale=0)
+                detail_header   = gr.HTML()
+            player_out   = gr.HTML()
+            download_out = gr.File(label="Descargar pistas (MP3)", file_count="multiple",
+                                   interactive=False, visible=False)
+            kpi_out      = gr.HTML()
 
-        stem_checks = gr.CheckboxGroup(
-            choices=[('Voces', 'vocals'), ('Batería', 'drums'), ('Bajo', 'bass'),
-                     ('Otro', 'other'), ('Guitarra ★6 pistas', 'guitar'), ('Piano ★6 pistas', 'piano')],
-            value=DEFAULT_STEMS,
-            label="Personalizado",
-        )
+    # ── Helpers ──────────────────────────────────────────────────────────────
 
-        gr.HTML("<div style='height:8px'></div>")
-        start_btn    = gr.Button("Empezar separación", variant="primary", size="lg")
-        progress_out = gr.HTML()
+    def _go(tab_id):
+        return gr.update(selected=tab_id)
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SCREEN 4 — DETAIL
-    # ══════════════════════════════════════════════════════════════════════════
-    with gr.Group(visible=False) as scr_detail:
-        with gr.Row():
-            back_detail_btn = gr.Button("← Volver", size="sm", scale=0)
-            detail_header   = gr.HTML()
-            del_btn         = gr.Button("🗑", size="sm", scale=0, min_width=40)
-
-        player_out    = gr.HTML()
-        download_out  = gr.File(label="Descargar pistas (MP3)", file_count="multiple",
-                                interactive=False, visible=False)
-        dl_label_out  = gr.HTML()
-        kpi_out       = gr.HTML()
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # NAVIGATION HELPERS
-    # ══════════════════════════════════════════════════════════════════════════
-
-    def _show(n):
-        return [gr.update(visible=(i == n)) for i in range(4)]
-
-    # ── Library → Upload ──────────────────────────────────────────────────────
-    def go_upload(_):
-        s = _show(1)
-        return s[0], s[1], s[2], s[3], gr.update(value=None)
-
-    add_btn.click(
-        go_upload, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in],
-    )
-
-    # ── Upload → Library (back) ───────────────────────────────────────────────
-    def go_library(library):
-        s = _show(0)
-        return s[0], s[1], s[2], s[3], build_library_html(library)
-
-    back_new_btn.click(
-        go_library, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
-    )
-
-    # ── File uploaded → store in state ───────────────────────────────────────
-    def on_file(file):
+    def _file_info(file):
         if file is None:
             return {}
         if hasattr(file, 'path'):
-            file_path  = file.path
-            name       = getattr(file, 'orig_name', None) or os.path.basename(file_path)
-            size_bytes = getattr(file, 'size', None)
-            size_mb    = round((size_bytes / 1_048_576) if size_bytes else os.path.getsize(file_path) / 1_048_576, 2)
+            fp   = file.path
+            name = getattr(file, 'orig_name', None) or os.path.basename(fp)
+            sb   = getattr(file, 'size', None)
+            mb   = round((sb/1_048_576) if sb else os.path.getsize(fp)/1_048_576, 2)
         elif hasattr(file, 'name'):
-            file_path = file.name
-            name      = os.path.basename(file_path)
-            size_mb   = round(os.path.getsize(file_path) / 1_048_576, 2)
+            fp = file.name; name = os.path.basename(fp); mb = round(os.path.getsize(fp)/1_048_576, 2)
         elif isinstance(file, str):
-            file_path = file
-            name      = os.path.basename(file_path)
-            size_mb   = round(os.path.getsize(file_path) / 1_048_576, 2)
+            fp = file; name = os.path.basename(fp); mb = round(os.path.getsize(fp)/1_048_576, 2)
         else:
             return {}
-        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
-        print(f"[on_file] path={file_path} name={name} ext={ext} size={size_mb}MB")
-        return {'path': file_path, 'name': name, 'ext': ext, 'size_mb': size_mb}
+        ext = name.rsplit('.',1)[-1].lower() if '.' in name else ''
+        print(f"[file] {name} {mb}MB")
+        return {'path': fp, 'name': name, 'ext': ext, 'size_mb': mb}
 
-    file_in.upload(on_file, inputs=[file_in], outputs=[pending_st])
-    file_in.change(on_file, inputs=[file_in], outputs=[pending_st])
-
-    # ── Upload → Instruments ──────────────────────────────────────────────────
-    def go_instruments(pending):
-        print(f"[go_instruments] pending={pending}")
-        if not pending or not pending.get('path'):
-            s = _show(1)
-            return s[0], s[1], s[2], s[3], gr.update(value=""), list(DEFAULT_STEMS)
-        ext  = pending.get('ext', '')
-        html = (
-            f"<div style='padding:10px 16px;border:1px solid #1a1a1a;border-radius:10px;margin-bottom:14px'>"
-            f"<span style='font-weight:500'>{pending.get('name','')}</span>"
-            f"<span style='color:#888;font-size:.8rem;margin-left:10px'>"
-            f"{pending.get('size_mb',0):.1f} MB · {ext.upper()}</span></div>"
+    def _kpi_html(results):
+        d = results.get('duration', 0)
+        return (
+            "<div style='border-top:1px solid #111;padding-top:14px;"
+            "display:flex;gap:24px;flex-wrap:wrap;margin-top:12px'>"
+            + "".join(
+                f"<div style='text-align:center'>"
+                f"<div style='color:#555;font-size:.62rem;text-transform:uppercase;letter-spacing:1px'>{l}</div>"
+                f"<div style='font-size:.88rem;font-weight:600'>{v}</div></div>"
+                for l,v in [
+                    ('Tonalidad', results['key']['key_en']),
+                    ('Tempo',     f"{results['tempo']['bpm']} BPM"),
+                    ('Compás',    results['time_signature']['time_sig']),
+                    ('Duración',  f"{int(d//60)}:{int(d%60):02d}"),
+                ]
+            ) + "</div>"
         )
-        s = _show(2)
-        return s[0], s[1], s[2], s[3], html, list(DEFAULT_STEMS)
 
-    continue_btn.click(
-        go_instruments, inputs=[pending_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, instr_file_html, stem_checks],
-    )
+    # ── Library navigation ────────────────────────────────────────────────────
+    add_btn.click(lambda _: _go(1), inputs=[library_st], outputs=[screens])
 
-    # ── Instruments → Upload (back) ───────────────────────────────────────────
-    back_instr_btn.click(
-        go_upload, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in],
-    )
-    back_detail_btn.click(
-        go_library, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
-    )
+    back_new_btn.click(lambda lib: (_go(0), build_library_html(lib)),
+                       inputs=[library_st], outputs=[screens, lib_html])
+
+    back_instr_btn.click(lambda _: _go(1), inputs=[library_st], outputs=[screens])
+
+    back_detail_btn.click(lambda lib: (_go(0), build_library_html(lib)),
+                          inputs=[library_st], outputs=[screens, lib_html])
+
+    # ── File upload ───────────────────────────────────────────────────────────
+    file_in.upload(_file_info, inputs=[file_in], outputs=[pending_st])
+    file_in.change(_file_info, inputs=[file_in], outputs=[pending_st])
+
+    # ── Continue → Instruments ────────────────────────────────────────────────
+    def go_instr(pending):
+        if not pending or not pending.get('path'):
+            return _go(1), ""
+        ext  = pending.get('ext','')
+        html = (f"<div style='padding:10px 16px;border:1px solid #333;border-radius:8px;margin-bottom:12px'>"
+                f"<b>{pending.get('name','')}</b>"
+                f"<span style='color:#888;margin-left:8px;font-size:.8rem'>"
+                f"{pending.get('size_mb',0):.1f} MB · {ext.upper()}</span></div>")
+        return _go(2), html
+
+    continue_btn.click(go_instr, inputs=[pending_st], outputs=[screens, instr_file_html])
 
     # ── Preset buttons ────────────────────────────────────────────────────────
-    preset_4_btn.click(lambda: list(DEFAULT_STEMS),        outputs=[stem_checks])
-    preset_2_btn.click(lambda: ['vocals', 'other'],        outputs=[stem_checks])
+    preset_4_btn.click(lambda: list(DEFAULT_STEMS), outputs=[stem_checks])
+    preset_2_btn.click(lambda: ['vocals','other'],  outputs=[stem_checks])
 
-    # ── Run analysis (generator for real-time progress) ───────────────────────
+    # ── Run analysis ──────────────────────────────────────────────────────────
     def run_analysis(pending, sel_stems, library):
         import time as _time
         from audio_analysis import MusicAnalyzer
 
         if not pending or not pending.get('path'):
-            yield (
-                *_upd(False, False, True, False),
-                "<p style='color:#f87171'>Error: no hay archivo seleccionado.</p>",
-                gr.update(), gr.update(), gr.update(visible=False), gr.update(), gr.update(), library,
-            )
+            yield _go(2), "<p style='color:red'>Sin archivo.</p>", gr.update(), gr.update(visible=False), gr.update(), library
             return
 
-        t0  = _time.monotonic()
+        t0 = _time.monotonic()
         log = []
 
-        def _log(level, step, msg):
-            log.append({
-                'ts':      _time.strftime('%H:%M:%S'),
-                'elapsed': round(_time.monotonic() - t0, 2),
-                'level':   level, 'step': step, 'msg': msg,
-            })
+        def _log(lv, step, msg):
+            log.append({'ts': _time.strftime('%H:%M:%S'),
+                        'elapsed': round(_time.monotonic()-t0,2),
+                        'level': lv, 'step': step, 'msg': msg})
 
-        def _progress():
-            return (
-                *_upd(False, False, True, False),
-                _render_log(log),
-                gr.update(), gr.update(), gr.update(visible=False), gr.update(), gr.update(), library,
-            )
+        def _prog():
+            return _go(2), _render_log(log), gr.update(), gr.update(visible=False), gr.update(), library
 
-        file_path = pending['path']
-        _log('info', 'Inicio', f"{pending['name']}  |  {pending['size_mb']:.1f} MB")
-        yield _progress()
+        _log('info','Inicio', f"{pending['name']} | {pending['size_mb']:.1f} MB")
+        yield _prog()
 
         try:
-            analyzer = MusicAnalyzer(file_path)
+            analyzer = MusicAnalyzer(pending['path'])
             analyzer.load_audio()
-            _log('ok', 'Audio', f"SR={analyzer.sr} Hz · dur={analyzer.y.shape[0]/analyzer.sr:.1f}s")
-            yield _progress()
+            _log('ok','Audio', f"SR={analyzer.sr} · {analyzer.y.shape[0]/analyzer.sr:.1f}s")
+            yield _prog()
 
             results = analyzer.analyze()
-            _log('ok', 'Análisis', f"Tono={results['key']['key_en']} · BPM={results['tempo']['bpm']}")
-            yield _progress()
+            _log('ok','Análisis', f"Tono={results['key']['key_en']} · BPM={results['tempo']['bpm']}")
+            yield _prog()
 
             import soundfile as sf_
             _buf = io.BytesIO()
             sf_.write(_buf, analyzer.y, analyzer.sr, format='WAV', subtype='PCM_16')
             audio_bytes = _buf.getvalue()
-            _log('ok', 'WAV', f"{len(audio_bytes)/1_048_576:.2f} MB")
-            yield _progress()
+            _log('ok','WAV', f"{len(audio_bytes)/1_048_576:.2f} MB")
+            yield _prog()
 
-            stems      = None
-            model_name = ''
+            stems = None; model_name = ''
             try:
                 from stem_separation import check_demucs
                 demucs_ok, _ = check_demucs()
@@ -822,134 +776,76 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                 demucs_ok = False
 
             if demucs_ok and sel_stems:
-                model_name = ('htdemucs_6s'
-                              if any(s in sel_stems for s in ('piano', 'guitar'))
-                              else 'htdemucs_ft')
-                _log('info', 'Demucs', f"Modelo: {model_name} · pistas: {sel_stems}")
-                yield _progress()
-
-                def _sp(pct, msg):
-                    _log('info', 'Demucs', f"[{pct}%] {msg}")
-                    # can't yield inside callback, just log
-
+                model_name = 'htdemucs_6s' if any(s in sel_stems for s in ('piano','guitar')) else 'htdemucs_ft'
+                _log('info','Demucs', f"{model_name} · {sel_stems}")
+                yield _prog()
                 from stem_separation import separate_stems
-                all_s  = separate_stems(file_path, model_name=model_name, progress_cb=_sp)
-                stems  = {k: v for k, v in all_s.items() if k in sel_stems}
-                total_mb = sum(len(v['wav_bytes']) for v in stems.values()) / 1_048_576
-                _log('ok', 'Separación', f"Pistas: {list(stems.keys())} · {total_mb:.1f} MB")
-                yield _progress()
+                all_s = separate_stems(pending['path'], model_name=model_name,
+                                       progress_cb=lambda p,m: _log('info','Demucs',f"[{p}%] {m}"))
+                stems = {k:v for k,v in all_s.items() if k in sel_stems}
+                _log('ok','Separación', f"{list(stems.keys())}")
+                yield _prog()
 
-            # Save
             item_id = str(uuid.uuid4())
             item = {
-                'id':             item_id,
-                'filename':       pending['name'],
-                'size_mb':        pending['size_mb'],
-                'ext':            pending['ext'],
-                'date_added':     datetime.now().strftime('%Y-%m-%d %H:%M'),
-                'bpm':            results.get('tempo', {}).get('bpm', 0),
-                'key':            results.get('key', {}).get('key', '—'),
-                'key_en':         results.get('key', {}).get('key_en', '—'),
-                'duration':       results.get('duration', 0),
-                'stems_plan':     sel_stems,
-                'model_name':     model_name,
-                'processing_log': log,
-                'results':        results,
-                'stems':          stems,
-                'audio_bytes':    audio_bytes,
+                'id': item_id, 'filename': pending['name'],
+                'size_mb': pending['size_mb'], 'ext': pending['ext'],
+                'date_added': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                'bpm': results.get('tempo',{}).get('bpm',0),
+                'key': results.get('key',{}).get('key','—'),
+                'key_en': results.get('key',{}).get('key_en','—'),
+                'duration': results.get('duration',0),
+                'stems_plan': sel_stems, 'model_name': model_name,
+                'processing_log': log, 'results': results,
+                'stems': stems, 'audio_bytes': audio_bytes,
             }
             _save_item(item)
             library = library + [item]
             _save_library_index(library)
-            _log('ok', 'Guardado', f"ID: {item_id[:8]}…")
-            total_s = round(_time.monotonic() - t0, 1)
-            _log('ok', 'Completado', f"Tiempo total: {total_s}s")
+            _log('ok','Completado', f"{round(_time.monotonic()-t0,1)}s total")
 
-            # Build detail view
-            player_html_str = build_player_html(results, audio_bytes, stems)
+            player_html = build_player_html(results, audio_bytes, stems)
 
-            # MP3 downloads
             mp3_paths = []
             if stems:
                 for key, stem in stems.items():
                     data, mime = _compress_to_mp3(stem['wav_bytes'], '192k')
                     ext2 = 'mp3' if mime == 'audio/mpeg' else 'wav'
-                    name_base = pending['name'].rsplit('.', 1)[0]
-                    tmp = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=f'_{name_base}_{key}.{ext2}'
-                    )
+                    nm = pending['name'].rsplit('.',1)[0]
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{nm}_{key}.{ext2}')
                     tmp.write(data); tmp.close()
                     mp3_paths.append(tmp.name)
 
-            d = results.get('duration', 0)
-            header_html = (
-                f"<div style='padding:3px 0'>"
-                f"<span style='color:#ccc;font-size:.9rem;font-weight:600'>{pending['name']}</span>"
-                f"<span style='color:#2a2a2a;font-size:.73rem;margin-left:10px'>"
-                f"{results['key']['key_en']} · {results['tempo']['bpm']} BPM · "
-                f"{int(d//60)}:{int(d%60):02d}</span></div>"
-            )
-
-            kpi_html_str = (
-                "<div style='border-top:1px solid #111;padding-top:14px;"
-                "display:flex;gap:24px;flex-wrap:wrap;margin-top:12px'>"
-                + "".join(
-                    f"<div style='text-align:center'>"
-                    f"<div style='color:#252525;font-size:.62rem;text-transform:uppercase;"
-                    f"letter-spacing:1px'>{lbl}</div>"
-                    f"<div style='color:#555;font-size:.88rem;font-weight:600'>{val}</div></div>"
-                    for lbl, val in [
-                        ('Tonalidad', results['key']['key_en']),
-                        ('Tempo',     f"{results['tempo']['bpm']} BPM"),
-                        ('Compás',    results['time_signature']['time_sig']),
-                        ('Duración',  f"{int(d//60)}:{int(d%60):02d}"),
-                    ]
-                )
-                + "</div>"
-            )
-
-            dl_label = (
-                "<p style='color:#2e2e2e;font-size:.74rem;margin:12px 0 4px'>Descargar pistas</p>"
-                if mp3_paths else ""
-            )
+            d = results.get('duration',0)
+            hdr = (f"<div><b style='font-size:.9rem'>{pending['name']}</b>"
+                   f"<span style='color:#888;margin-left:8px;font-size:.75rem'>"
+                   f"{results['key']['key_en']} · {results['tempo']['bpm']} BPM · "
+                   f"{int(d//60)}:{int(d%60):02d}</span></div>")
 
             yield (
-                *_upd(False, False, False, True),
-                "",                              # progress_out — clear
-                header_html,                     # detail_header
-                player_html_str,                 # player_out
-                gr.update(value=mp3_paths or None, visible=bool(mp3_paths)),  # download_out
-                dl_label,                        # dl_label_out
-                kpi_html_str,                    # kpi_out
-                library,                         # library_st
+                _go(3),
+                "",
+                gr.update(value=hdr),
+                gr.update(value=player_html),
+                gr.update(value=mp3_paths or None, visible=bool(mp3_paths)),
+                gr.update(value=_kpi_html(results)),
+                library,
             )
 
         except Exception as e:
-            _log('error', 'Error', str(e))
-            yield (
-                *_upd(False, False, True, False),
-                _render_log(log) + f"<p style='color:#f87171;margin-top:8px'>{e}</p>",
-                gr.update(), gr.update(), gr.update(visible=False), gr.update(), gr.update(), library,
-            )
+            _log('error','Error', str(e))
+            yield _go(2), _render_log(log)+f"<p style='color:red;margin-top:8px'>{e}</p>", gr.update(), gr.update(visible=False), gr.update(), library
 
     start_btn.click(
         run_analysis,
         inputs=[pending_st, stem_checks, library_st],
-        outputs=[
-            scr_lib, scr_upload, scr_instr, scr_detail,
-            progress_out,
-            detail_header, player_out, download_out, dl_label_out, kpi_out,
-            library_st,
-        ],
+        outputs=[screens, progress_out, detail_header, player_out, download_out, kpi_out, library_st],
     )
 
-    # ── Library item click → Detail ───────────────────────────────────────────
+    # ── Open library item ─────────────────────────────────────────────────────
     def open_item(item_id, library):
         if not item_id:
-            return (
-                *_upd(True, False, False, False),
-                build_library_html(library), library, "", "", gr.update(visible=False), "", "",
-            )
+            return _go(0), build_library_html(library), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
 
         item = next((x for x in library if x['id'] == item_id), None)
         if item and item.get('results') is None:
@@ -957,99 +853,44 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
             library = [item if x['id'] == item_id else x for x in library]
 
         if item is None:
-            return (
-                *_upd(True, False, False, False),
-                build_library_html(library), library, "", "", gr.update(visible=False), "", "",
-            )
+            return _go(0), build_library_html(library), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
 
-        results     = item.get('results')
-        stems       = item.get('stems')
-        audio_bytes = item.get('audio_bytes')
+        results = item.get('results')
+        stems   = item.get('stems')
+        ab      = item.get('audio_bytes')
 
-        d = item.get('duration', 0)
-        header_html = (
-            f"<div style='padding:3px 0'>"
-            f"<span style='color:#ccc;font-size:.9rem;font-weight:600'>{item['filename']}</span>"
-            f"<span style='color:#2a2a2a;font-size:.73rem;margin-left:10px'>"
-            f"{item.get('key_en','—')} · {item.get('bpm','—')} BPM · "
-            f"{int(d//60)}:{int(d%60):02d}</span></div>"
-        )
-
-        player_html_str = build_player_html(results, audio_bytes, stems) if (results and audio_bytes) else ""
+        player_html = build_player_html(results, ab, stems) if (results and ab) else ""
 
         mp3_paths = []
         if stems:
             for key, stem in stems.items():
                 data, mime = _compress_to_mp3(stem['wav_bytes'], '192k')
                 ext2 = 'mp3' if mime == 'audio/mpeg' else 'wav'
-                name_base = item['filename'].rsplit('.', 1)[0]
-                tmp = tempfile.NamedTemporaryFile(
-                    delete=False, suffix=f'_{name_base}_{key}.{ext2}'
-                )
+                nm = item['filename'].rsplit('.',1)[0]
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{nm}_{key}.{ext2}')
                 tmp.write(data); tmp.close()
                 mp3_paths.append(tmp.name)
 
-        dl_label = (
-            "<p style='color:#2e2e2e;font-size:.74rem;margin:12px 0 4px'>Descargar pistas</p>"
-            if mp3_paths else ""
-        )
-
-        kpi_str = ""
-        if results:
-            kpi_str = (
-                "<div style='border-top:1px solid #111;padding-top:14px;"
-                "display:flex;gap:24px;flex-wrap:wrap;margin-top:12px'>"
-                + "".join(
-                    f"<div style='text-align:center'>"
-                    f"<div style='color:#252525;font-size:.62rem;text-transform:uppercase;letter-spacing:1px'>{lbl}</div>"
-                    f"<div style='color:#555;font-size:.88rem;font-weight:600'>{val}</div></div>"
-                    for lbl, val in [
-                        ('Tonalidad', results['key']['key_en']),
-                        ('Tempo',     f"{results['tempo']['bpm']} BPM"),
-                        ('Compás',    results['time_signature']['time_sig']),
-                        ('Duración',  f"{int(d//60)}:{int(d%60):02d}"),
-                    ]
-                )
-                + "</div>"
-            )
+        d = item.get('duration', 0)
+        hdr = (f"<div><b style='font-size:.9rem'>{item['filename']}</b>"
+               f"<span style='color:#888;margin-left:8px;font-size:.75rem'>"
+               f"{item.get('key_en','—')} · {item.get('bpm','—')} BPM · "
+               f"{int(d//60)}:{int(d%60):02d}</span></div>")
 
         return (
-            *_upd(False, False, False, True),
+            _go(3),
             build_library_html(library),
             library,
-            header_html,
-            player_html_str,
+            gr.update(value=hdr),
+            gr.update(value=player_html),
             gr.update(value=mp3_paths or None, visible=bool(mp3_paths)),
-            dl_label,
-            kpi_str,
+            gr.update(value=_kpi_html(results) if results else ""),
         )
 
     item_id_box.change(
         open_item,
         inputs=[item_id_box, library_st],
-        outputs=[
-            scr_lib, scr_upload, scr_instr, scr_detail,
-            lib_html, library_st,
-            detail_header, player_out, download_out, dl_label_out, kpi_out,
-        ],
-    )
-
-    # ── Detail → Library (back) ───────────────────────────────────────────────
-    back_detail_btn.click(
-        go_library, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
-    )
-
-    # ── Delete item ───────────────────────────────────────────────────────────
-    def delete_item(header_html, library):
-        # Extract ID from current detail — find it by matching filename in header
-        # Simpler: store detail_item_st and use it
-        return go_library(library)
-
-    # ── Detail → Library on delete ────────────────────────────────────────────
-    del_btn.click(
-        go_library, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
+        outputs=[screens, lib_html, library_st, detail_header, player_out, download_out, kpi_out],
     )
 
 

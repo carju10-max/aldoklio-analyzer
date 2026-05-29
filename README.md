@@ -3,8 +3,8 @@ title: Aldo&Klio Analyzer
 emoji: 🎚️
 colorFrom: purple
 colorTo: gray
-sdk: streamlit
-sdk_version: 1.41.0
+sdk: gradio
+sdk_version: "6.15.2"
 app_file: app.py
 pinned: false
 ---
@@ -20,4 +20,4 @@ Separación de pistas musicales con IA + análisis musical completo.
 - Soporte MP3, WAV, FLAC, M4A, MP4, MKV, MOV y más
 
 ## Stack
-Python · Streamlit · Librosa · Demucs · PyTorch · Web Audio API
+Python · Gradio · Librosa · Demucs · PyTorch · Web Audio API
