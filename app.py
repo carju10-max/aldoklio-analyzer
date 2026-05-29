@@ -566,19 +566,15 @@ def _render_log(log: list) -> str:
 # ── Gradio CSS ────────────────────────────────────────────────────────────────
 
 GRADIO_CSS = """
-/* Base */
-.gradio-container { background:#080808 !important; max-width:100% !important; padding:0 16px !important; }
 footer { display:none !important; }
-.dark { --block-background-fill:#0d0d0d; --block-border-color:#1e1e1e; }
 
-/* Top nav */
 .top-nav {
-    display:flex; align-items:center; justify-content:space-between;
-    background:#080808; border-bottom:1px solid #1a1a1a;
-    padding:0 28px; height:58px; margin:-8px -16px 20px;
+    display:flex; align-items:center;
+    border-bottom:1px solid #1a1a1a;
+    padding:0 16px; height:52px; margin-bottom:16px;
 }
 .top-nav-logo {
-    font-size:1.45rem; font-weight:900; letter-spacing:-.5px;
+    font-size:1.3rem; font-weight:900; letter-spacing:-.5px;
     background:linear-gradient(135deg,#fff 0%,#c084fc 100%);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
 }
@@ -588,29 +584,7 @@ footer { display:none !important; }
     font-weight:300;
 }
 
-/* Buttons */
-button.primary { background:#ffffff !important; color:#000 !important; font-weight:600 !important; }
-button.secondary { background:transparent !important; border:1px solid #2a2a2a !important; color:#888 !important; }
-
-/* Inputs */
-.gr-box, .gr-input, textarea, input[type=text] {
-    background:#0d0d0d !important; border-color:#1e1e1e !important; color:#ccc !important;
-}
-
-/* CheckboxGroup */
-.gr-check-radio { background:#0d0d0d !important; border:1px solid #1e1e1e !important; border-radius:8px !important; }
-
-/* File upload */
-.gr-file-preview { background:#0d0d0d !important; border-color:#1e1e1e !important; }
-
-/* Tab labels */
-.tab-nav button { color:#4a4a4a !important; background:transparent !important; border-bottom:2px solid transparent !important; }
-.tab-nav button.selected { color:#fff !important; border-bottom-color:#fff !important; }
-
-/* Hide textbox used for JS bridge */
 #item-id-box { display:none !important; }
-
-/* Stem checkbox labels */
 input[type=checkbox] { accent-color:#c084fc; }
 """
 
@@ -624,7 +598,7 @@ def _upd(*visible_flags):
 ALL_SCREENS = 4  # library, upload, instruments, detail
 
 
-with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
+with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
     # ── State ──────────────────────────────────────────────────────────────────
     library_st    = gr.State(_load_library())
@@ -641,7 +615,7 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
     # ══════════════════════════════════════════════════════════════════════════
     # SCREEN 1 — LIBRARY
     # ══════════════════════════════════════════════════════════════════════════
-    with gr.Column(visible=True) as scr_lib:
+    with gr.Group(visible=True) as scr_lib:
         with gr.Row():
             gr.HTML("<h2 style='color:#fff;font-size:1.2rem;font-weight:600;margin:0;padding:4px 0'>Separación de pistas</h2>")
             add_btn = gr.Button("+ Agregar", variant="primary", scale=0, min_width=130)
@@ -652,7 +626,7 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
     # ══════════════════════════════════════════════════════════════════════════
     # SCREEN 2 — UPLOAD
     # ══════════════════════════════════════════════════════════════════════════
-    with gr.Column(visible=False) as scr_upload:
+    with gr.Group(visible=False) as scr_upload:
         back_new_btn = gr.Button("← Volver", size="sm", scale=0)
         gr.HTML("<h2 style='color:#fff;font-size:1.12rem;font-weight:600;margin:12px 0'>Agregar archivo</h2>")
         file_in = gr.File(
@@ -660,12 +634,12 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
             file_types=[".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aiff",
                         ".mp4", ".mkv", ".avi", ".mov", ".webm"],
         )
-        continue_btn = gr.Button("Continuar →", variant="primary", interactive=False)
+        continue_btn = gr.Button("Continuar →", variant="primary")
 
     # ══════════════════════════════════════════════════════════════════════════
     # SCREEN 3 — INSTRUMENTS
     # ══════════════════════════════════════════════════════════════════════════
-    with gr.Column(visible=False) as scr_instr:
+    with gr.Group(visible=False) as scr_instr:
         back_instr_btn = gr.Button("← Volver", size="sm", scale=0)
         gr.HTML("<h1 style='font-size:1.7rem;font-weight:800;color:#fff;margin:12px 0 4px;letter-spacing:-.5px'>Separar pistas</h1>")
         instr_file_html = gr.HTML()
@@ -688,7 +662,7 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
     # ══════════════════════════════════════════════════════════════════════════
     # SCREEN 4 — DETAIL
     # ══════════════════════════════════════════════════════════════════════════
-    with gr.Column(visible=False) as scr_detail:
+    with gr.Group(visible=False) as scr_detail:
         with gr.Row():
             back_detail_btn = gr.Button("← Volver", size="sm", scale=0)
             detail_header   = gr.HTML()
@@ -701,56 +675,73 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
         kpi_out       = gr.HTML()
 
     # ══════════════════════════════════════════════════════════════════════════
-    # EVENT HANDLERS
+    # NAVIGATION HELPERS
     # ══════════════════════════════════════════════════════════════════════════
+
+    def _show(n):
+        return [gr.update(visible=(i == n)) for i in range(4)]
 
     # ── Library → Upload ──────────────────────────────────────────────────────
     def go_upload(_):
-        return (
-            *_upd(False, True, False, False),
-            gr.update(value=None),
-            gr.update(interactive=False),
-        )
+        s = _show(1)
+        return s[0], s[1], s[2], s[3], gr.update(value=None)
 
     add_btn.click(
         go_upload, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in, continue_btn],
+        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in],
     )
 
     # ── Upload → Library (back) ───────────────────────────────────────────────
     def go_library(library):
-        return (*_upd(True, False, False, False), build_library_html(library))
+        s = _show(0)
+        return s[0], s[1], s[2], s[3], build_library_html(library)
 
     back_new_btn.click(
         go_library, inputs=[library_st],
         outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
     )
 
-    # ── File uploaded → enable Continue ──────────────────────────────────────
+    # ── File uploaded → store in state ───────────────────────────────────────
     def on_file(file):
         if file is None:
-            return gr.update(interactive=False), {}
-        name    = os.path.basename(file.name)
-        ext     = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
-        size_mb = round(os.path.getsize(file.name) / 1_048_576, 2)
-        return gr.update(interactive=True), {'path': file.name, 'name': name, 'ext': ext, 'size_mb': size_mb}
+            return {}
+        if hasattr(file, 'path'):
+            file_path  = file.path
+            name       = getattr(file, 'orig_name', None) or os.path.basename(file_path)
+            size_bytes = getattr(file, 'size', None)
+            size_mb    = round((size_bytes / 1_048_576) if size_bytes else os.path.getsize(file_path) / 1_048_576, 2)
+        elif hasattr(file, 'name'):
+            file_path = file.name
+            name      = os.path.basename(file_path)
+            size_mb   = round(os.path.getsize(file_path) / 1_048_576, 2)
+        elif isinstance(file, str):
+            file_path = file
+            name      = os.path.basename(file_path)
+            size_mb   = round(os.path.getsize(file_path) / 1_048_576, 2)
+        else:
+            return {}
+        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+        print(f"[on_file] path={file_path} name={name} ext={ext} size={size_mb}MB")
+        return {'path': file_path, 'name': name, 'ext': ext, 'size_mb': size_mb}
 
-    file_in.change(on_file, inputs=[file_in], outputs=[continue_btn, pending_st])
+    file_in.upload(on_file, inputs=[file_in], outputs=[pending_st])
+    file_in.change(on_file, inputs=[file_in], outputs=[pending_st])
 
     # ── Upload → Instruments ──────────────────────────────────────────────────
     def go_instruments(pending):
-        if not pending:
-            return *_upd(False, True, False, False), gr.update(value=""), list(DEFAULT_STEMS)
+        print(f"[go_instruments] pending={pending}")
+        if not pending or not pending.get('path'):
+            s = _show(1)
+            return s[0], s[1], s[2], s[3], gr.update(value=""), list(DEFAULT_STEMS)
         ext  = pending.get('ext', '')
-        is_v = ext in ('mp4', 'mkv', 'avi', 'mov', 'webm')
         html = (
-            f"<div style='display:flex;align-items:center;gap:10px;background:#0e0e0e;"
-            f"border:1px solid #1a1a1a;border-radius:10px;padding:10px 16px;margin-bottom:14px'>"
-            f"<span style='color:#aaa;font-size:.84rem;font-weight:500;flex:1'>{pending.get('name','')}</span>"
-            f"<span style='color:#282828;font-size:.7rem'>"
+            f"<div style='padding:10px 16px;border:1px solid #1a1a1a;border-radius:10px;margin-bottom:14px'>"
+            f"<span style='font-weight:500'>{pending.get('name','')}</span>"
+            f"<span style='color:#888;font-size:.8rem;margin-left:10px'>"
             f"{pending.get('size_mb',0):.1f} MB · {ext.upper()}</span></div>"
         )
-        return *_upd(False, False, True, False), html, list(DEFAULT_STEMS)
+        s = _show(2)
+        return s[0], s[1], s[2], s[3], html, list(DEFAULT_STEMS)
 
     continue_btn.click(
         go_instruments, inputs=[pending_st],
@@ -760,7 +751,11 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
     # ── Instruments → Upload (back) ───────────────────────────────────────────
     back_instr_btn.click(
         go_upload, inputs=[library_st],
-        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in, continue_btn],
+        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, file_in],
+    )
+    back_detail_btn.click(
+        go_library, inputs=[library_st],
+        outputs=[scr_lib, scr_upload, scr_instr, scr_detail, lib_html],
     )
 
     # ── Preset buttons ────────────────────────────────────────────────────────
@@ -1059,4 +1054,4 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(server_port=7861, css=GRADIO_CSS)
