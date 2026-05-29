@@ -9,6 +9,18 @@ from datetime import datetime
 import numpy as np
 import gradio as gr
 
+# ── Supabase client ───────────────────────────────────────────────────────────
+def _get_sb():
+    try:
+        from supabase import create_client
+        url = os.environ.get('SUPABASE_URL', '')
+        key = os.environ.get('SUPABASE_KEY', '')
+        if url and key:
+            return create_client(url, key)
+    except Exception:
+        pass
+    return None
+
 # ZeroGPU: HF detecta @spaces.GPU en el archivo principal al arrancar.
 # Se define aquí directamente para que el scanner estático lo encuentre.
 try:
@@ -56,27 +68,104 @@ def _to_serializable(obj):
 
 
 def _save_item(item: dict):
-    import soundfile as sf
-    item_dir = LIBRARY_DIR / item['id']
-    item_dir.mkdir(parents=True, exist_ok=True)
-    meta = {k: v for k, v in item.items() if k not in ('results', 'stems', 'audio_bytes')}
-    if item.get('results'):
-        meta['results'] = _to_serializable(item['results'])
-    (item_dir / 'meta.json').write_text(
-        json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8'
-    )
-    if item.get('audio_bytes'):
-        (item_dir / 'audio.wav').write_bytes(item['audio_bytes'])
-    if item.get('stems'):
-        stems_dir = item_dir / 'stems'
-        stems_dir.mkdir(exist_ok=True)
-        for key, stem in item['stems'].items():
-            wav_path = stems_dir / f"{key}.wav"
-            if not wav_path.exists():
-                wav_path.write_bytes(stem['wav_bytes'])
+    # ── Supabase ──────────────────────────────────────────────────────────────
+    sb = _get_sb()
+    if sb:
+        try:
+            row = {
+                'id': item['id'], 'filename': item['filename'],
+                'size_mb': item.get('size_mb', 0), 'ext': item.get('ext', ''),
+                'date_added': item.get('date_added', ''),
+                'bpm': item.get('bpm', 0), 'key': item.get('key', ''),
+                'key_en': item.get('key_en', ''), 'duration': item.get('duration', 0),
+                'stems_plan': item.get('stems_plan', []),
+                'model_name': item.get('model_name', ''),
+                'results_json': _to_serializable(item.get('results') or {}),
+            }
+            sb.table('library_items').upsert(row).execute()
+            bucket = sb.storage.from_('aldoklio')
+            if item.get('audio_bytes'):
+                mp3, mime = _compress_to_mp3(item['audio_bytes'])
+                bucket.upload(f"{item['id']}/audio.mp3", mp3,
+                              file_options={'content-type': mime, 'upsert': 'true'})
+            if item.get('stems'):
+                for sk, stem in item['stems'].items():
+                    mp3, mime = _compress_to_mp3(stem['wav_bytes'])
+                    bucket.upload(f"{item['id']}/{sk}.mp3", mp3,
+                                  file_options={'content-type': mime, 'upsert': 'true'})
+        except Exception as e:
+            print(f"[supabase save] {e}")
+
+    # ── Local fallback ────────────────────────────────────────────────────────
+    try:
+        item_dir = LIBRARY_DIR / item['id']
+        item_dir.mkdir(parents=True, exist_ok=True)
+        meta = {k: v for k, v in item.items() if k not in ('results', 'stems', 'audio_bytes')}
+        if item.get('results'):
+            meta['results'] = _to_serializable(item['results'])
+        (item_dir / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+        if item.get('audio_bytes'):
+            (item_dir / 'audio.wav').write_bytes(item['audio_bytes'])
+        if item.get('stems'):
+            stems_dir = item_dir / 'stems'
+            stems_dir.mkdir(exist_ok=True)
+            for key, stem in item['stems'].items():
+                wav_path = stems_dir / f"{key}.wav"
+                if not wav_path.exists():
+                    wav_path.write_bytes(stem['wav_bytes'])
+    except Exception as e:
+        print(f"[local save] {e}")
 
 
 def _load_item_from_disk(item_id: str) -> dict | None:
+    import soundfile as sf_
+    # ── Supabase ──────────────────────────────────────────────────────────────
+    sb = _get_sb()
+    if sb:
+        try:
+            res = sb.table('library_items').select('*').eq('id', item_id).single().execute()
+            if res.data:
+                row = res.data
+                item = {
+                    'id': row['id'], 'filename': row['filename'],
+                    'size_mb': row.get('size_mb', 0), 'ext': row.get('ext', ''),
+                    'date_added': row.get('date_added', ''),
+                    'bpm': row.get('bpm', 0), 'key': row.get('key', ''),
+                    'key_en': row.get('key_en', ''), 'duration': row.get('duration', 0),
+                    'stems_plan': row.get('stems_plan', []),
+                    'model_name': row.get('model_name', ''),
+                    'results': row.get('results_json'),
+                }
+                bucket = sb.storage.from_('aldoklio')
+                try:
+                    mp3 = bucket.download(f"{item_id}/audio.mp3")
+                    audio_np, sr = sf_.read(io.BytesIO(mp3), always_2d=True)
+                    buf = io.BytesIO()
+                    sf_.write(buf, audio_np, sr, format='WAV', subtype='PCM_16')
+                    item['audio_bytes'] = buf.getvalue()
+                except Exception:
+                    item['audio_bytes'] = None
+                stems = {}
+                for sk in (item.get('stems_plan') or []):
+                    try:
+                        mp3 = bucket.download(f"{item_id}/{sk}.mp3")
+                        audio_np, sr = sf_.read(io.BytesIO(mp3), always_2d=True)
+                        buf = io.BytesIO()
+                        sf_.write(buf, audio_np, sr, format='WAV', subtype='PCM_16')
+                        info = STEMS_INFO_DISK.get(sk, {'name_es': sk, 'icon': '?', 'color': '#888'})
+                        stems[sk] = {
+                            'name_es': info['name_es'], 'icon': info['icon'],
+                            'color': info['color'], 'audio_mono': audio_np.mean(axis=1),
+                            'sr': sr, 'wav_bytes': buf.getvalue(),
+                        }
+                    except Exception:
+                        pass
+                item['stems'] = stems if stems else None
+                return item
+        except Exception as e:
+            print(f"[supabase load item] {e}")
+
+    # ── Local fallback ────────────────────────────────────────────────────────
     item_dir  = LIBRARY_DIR / item_id
     meta_path = item_dir / 'meta.json'
     if not meta_path.exists():
@@ -87,7 +176,6 @@ def _load_item_from_disk(item_id: str) -> dict | None:
     stems_dir = item_dir / 'stems'
     if stems_dir.exists():
         try:
-            import soundfile as sf_
             stems = {}
             for wav_file in sorted(stems_dir.glob('*.wav')):
                 key  = wav_file.stem
@@ -96,12 +184,9 @@ def _load_item_from_disk(item_id: str) -> dict | None:
                     continue
                 audio_np, sr = sf_.read(str(wav_file), always_2d=True)
                 stems[key] = {
-                    'name_es':    info['name_es'],
-                    'icon':       info['icon'],
-                    'color':      info['color'],
-                    'audio_mono': audio_np.mean(axis=1),
-                    'sr':         sr,
-                    'wav_bytes':  wav_file.read_bytes(),
+                    'name_es': info['name_es'], 'icon': info['icon'], 'color': info['color'],
+                    'audio_mono': audio_np.mean(axis=1), 'sr': sr,
+                    'wav_bytes': wav_file.read_bytes(),
                 }
             data['stems'] = stems if stems else None
         except Exception:
@@ -112,6 +197,24 @@ def _load_item_from_disk(item_id: str) -> dict | None:
 
 
 def _load_library() -> list:
+    # ── Supabase ──────────────────────────────────────────────────────────────
+    sb = _get_sb()
+    if sb:
+        try:
+            res = sb.table('library_items').select(
+                'id,filename,size_mb,ext,date_added,bpm,key,key_en,duration,stems_plan,model_name'
+            ).order('created_at', desc=True).execute()
+            items = []
+            for row in (res.data or []):
+                row.setdefault('results', None)
+                row.setdefault('stems', None)
+                row.setdefault('audio_bytes', None)
+                items.append(row)
+            return items
+        except Exception as e:
+            print(f"[supabase load library] {e}")
+
+    # ── Local fallback ────────────────────────────────────────────────────────
     LIBRARY_DIR.mkdir(exist_ok=True)
     if not LIBRARY_JSON.exists():
         return []
@@ -127,11 +230,14 @@ def _load_library() -> list:
 
 
 def _save_library_index(items: list):
-    LIBRARY_DIR.mkdir(exist_ok=True)
-    safe = ('id', 'filename', 'size_mb', 'ext', 'date_added',
-            'bpm', 'key', 'key_en', 'duration', 'stems_plan', 'model_name')
-    index = [{k: v for k, v in it.items() if k in safe} for it in items]
-    LIBRARY_JSON.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
+    try:
+        LIBRARY_DIR.mkdir(exist_ok=True)
+        safe = ('id', 'filename', 'size_mb', 'ext', 'date_added',
+                'bpm', 'key', 'key_en', 'duration', 'stems_plan', 'model_name')
+        index = [{k: v for k, v in it.items() if k in safe} for it in items]
+        LIBRARY_JSON.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
+    except Exception:
+        pass
 
 
 def _delete_item(item_id: str):
