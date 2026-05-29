@@ -113,7 +113,6 @@ def _load_stereo(path: str, target_sr: int) -> np.ndarray:
 
 # ── Función principal ─────────────────────────────────────────────────────────
 
-@spaces.GPU(duration=30)
 def separate_stems(
     file_path: str,
     model_name: str = 'htdemucs',
