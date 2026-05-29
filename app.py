@@ -734,7 +734,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
         from audio_analysis import MusicAnalyzer
 
         if not pending or not pending.get('path'):
-            yield _go(2), "<p style='color:red'>Sin archivo.</p>", gr.update(), gr.update(visible=False), gr.update(), library
+            yield _go(2), "<p style='color:red'>Sin archivo.</p>", gr.update(), gr.update(), gr.update(visible=False), gr.update(), library
             return
 
         t0 = _time.monotonic()
@@ -746,7 +746,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                         'level': lv, 'step': step, 'msg': msg})
 
         def _prog():
-            return _go(2), _render_log(log), gr.update(), gr.update(visible=False), gr.update(), library
+            return _go(2), _render_log(log), gr.update(), gr.update(), gr.update(visible=False), gr.update(), library
 
         _log('info','Inicio', f"{pending['name']} | {pending['size_mb']:.1f} MB")
         yield _prog()
@@ -834,7 +834,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
         except Exception as e:
             _log('error','Error', str(e))
-            yield _go(2), _render_log(log)+f"<p style='color:red;margin-top:8px'>{e}</p>", gr.update(), gr.update(visible=False), gr.update(), library
+            yield _go(2), _render_log(log)+f"<p style='color:red;margin-top:8px'>{e}</p>", gr.update(), gr.update(), gr.update(visible=False), gr.update(), library
 
     start_btn.click(
         run_analysis,
@@ -895,4 +895,6 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(server_port=7861, css=GRADIO_CSS)
+    import os
+    port = None if os.environ.get('SPACE_ID') else 7861
+    demo.launch(server_port=port, css=GRADIO_CSS)
