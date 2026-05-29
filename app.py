@@ -632,8 +632,17 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
         with gr.Tab("", id=1):
             back_new_btn = gr.Button("← Volver", size="sm", scale=0)
             gr.HTML("<h2 style='font-size:1.12rem;font-weight:600;margin:12px 0'>Agregar archivo</h2>")
+
+            # ── YouTube download ──────────────────────────────────────────────
+            gr.HTML("<div style='font-size:.8rem;color:#555;margin-bottom:6px'>▶ Descargar de YouTube</div>")
+            with gr.Row():
+                yt_url_in  = gr.Textbox(placeholder="https://www.youtube.com/watch?v=...", show_label=False, scale=4)
+                yt_btn     = gr.Button("Descargar", scale=1)
+            yt_status = gr.HTML()
+            gr.HTML("<div style='border-top:1px solid #1a1a1a;margin:14px 0 10px'></div>")
+
             file_in = gr.File(
-                label="Seleccionar archivo de audio o video",
+                label="O seleccionar archivo de audio o video",
                 file_types=[".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aiff",
                             ".mp4", ".mkv", ".avi", ".mov", ".webm"],
             )
@@ -716,6 +725,37 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
     back_detail_btn.click(lambda lib: (_go(0), build_library_html(lib)),
                           inputs=[library_st], outputs=[screens, lib_html])
+
+    # ── YouTube download ──────────────────────────────────────────────────────
+    def download_yt(url):
+        if not url or not url.strip():
+            return "<p style='color:#f87171;font-size:.8rem'>Pega una URL de YouTube.</p>", {}, gr.update()
+        try:
+            import yt_dlp
+            tmpdir = tempfile.mkdtemp()
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
+                'quiet': True, 'no_warnings': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url.strip(), download=True)
+                title = info.get('title', 'audio')
+            # buscar el mp3 descargado
+            files = [f for f in os.listdir(tmpdir) if f.endswith('.mp3')]
+            if not files:
+                return "<p style='color:#f87171;font-size:.8rem'>No se pudo descargar el audio.</p>", {}, gr.update()
+            fp = os.path.join(tmpdir, files[0])
+            mb = round(os.path.getsize(fp) / 1_048_576, 2)
+            name = files[0]
+            pending = {'path': fp, 'name': name, 'ext': 'mp3', 'size_mb': mb}
+            msg = f"<p style='color:#4ade80;font-size:.8rem'>✓ Descargado: <b>{title}</b> ({mb} MB)</p>"
+            return msg, pending, gr.update(value=fp)
+        except Exception as e:
+            return f"<p style='color:#f87171;font-size:.8rem'>Error: {e}</p>", {}, gr.update()
+
+    yt_btn.click(download_yt, inputs=[yt_url_in], outputs=[yt_status, pending_st, file_in])
 
     # ── File upload ───────────────────────────────────────────────────────────
     file_in.upload(_file_info, inputs=[file_in], outputs=[pending_st])
