@@ -604,7 +604,7 @@ footer { display:none !important; }
     font-weight:300;
 }
 
-#item-id-box { position:fixed; left:-9999px; top:0; width:1px; height:1px; overflow:hidden; opacity:0; }
+#item-id-box { position:fixed !important; left:-9999px !important; top:0 !important; width:1px !important; height:1px !important; overflow:hidden !important; opacity:0 !important; pointer-events:none !important; }
 input[type=checkbox] { accent-color:#c084fc; }
 """
 
@@ -634,7 +634,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                 gr.HTML("<h2 style='font-size:1.2rem;font-weight:600;margin:0;padding:4px 0'>Separación de pistas</h2>")
                 add_btn = gr.Button("+ Agregar", variant="primary", scale=0, min_width=130)
             lib_html    = gr.HTML(build_library_html(_load_library()))
-            item_id_box = gr.Textbox(visible=False, elem_id="item-id-box")
+            item_id_box = gr.Textbox(elem_id="item-id-box", show_label=False, container=False)
 
         # ── TAB 1: UPLOAD ────────────────────────────────────────────────────
         with gr.Tab("", id=1):

@@ -401,7 +401,7 @@ class MusicAnalyzer:
             times_sync = np.linspace(0, self.duration, n)
 
         # ── 5. Acorde más probable, con umbral de confianza ───────────────────
-        MIN_SCORE = 0.80   # descartar si el match es débil
+        MIN_SCORE = 0.65   # descartar si el match es débil
         raw_chords: list[str] = []
 
         for i in range(chroma_sync.shape[1]):
@@ -417,8 +417,8 @@ class MusicAnalyzer:
                     best_score, best = score, name
             raw_chords.append(best if best_score >= MIN_SCORE else 'N/C')
 
-        # ── 6. Suavizado fuerte — ventana de ±3 ──────────────────────────────
-        W = 3
+        # ── 6. Suavizado fuerte — ventana de ±5 ──────────────────────────────
+        W = 5
         smoothed: list[str] = []
         for i in range(len(raw_chords)):
             window     = raw_chords[max(0, i - W): i + W + 1]
