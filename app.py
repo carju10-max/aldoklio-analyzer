@@ -610,7 +610,7 @@ def _upd(*visible_flags):
 ALL_SCREENS = 4  # library, upload, instruments, detail
 
 
-with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
+with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
     library_st = gr.State(_load_library())
     pending_st = gr.State({})
@@ -788,6 +788,7 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
             if demucs_ok and sel_stems:
                 model_name = 'htdemucs_6s' if any(s in sel_stems for s in ('piano','guitar')) else 'htdemucs_ft'
                 _log('info','Demucs', f"{model_name} · {sel_stems}")
+                _log('info','GPU', f"Separando en GPU… (~30-60s, no hay actualizaciones intermedias)")
                 yield _prog()
                 from stem_separation import separate_stems
                 all_s = separate_stems(pending['path'], model_name=model_name,
@@ -907,6 +908,6 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
 if __name__ == "__main__":
     import os
     if os.environ.get('SPACE_ID'):
-        demo.launch(ssr_mode=False)  # HF: sin SSR que crashea el Node proxy
+        demo.launch(ssr_mode=False, css=GRADIO_CSS)
     else:
-        demo.launch(server_port=7861, ssr_mode=False)  # local
+        demo.launch(server_port=7861, ssr_mode=False, css=GRADIO_CSS)
