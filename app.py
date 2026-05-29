@@ -567,8 +567,9 @@ def _render_log(log: list) -> str:
 
 GRADIO_CSS = """
 footer { display:none !important; }
-/* Ocultar cabeceras de tabs — navegación controlada por botones */
-div[role="tablist"] { display:none !important; }
+/* Ocultar cabeceras de tabs */
+.tabs > div:first-child button[role="tab"] { display:none !important; }
+.tab-nav { height:0 !important; overflow:hidden !important; }
 
 .top-nav {
     display:flex; align-items:center;
