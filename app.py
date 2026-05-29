@@ -600,7 +600,7 @@ def _upd(*visible_flags):
 ALL_SCREENS = 4  # library, upload, instruments, detail
 
 
-with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
+with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
 
     library_st = gr.State(_load_library())
     pending_st = gr.State({})
@@ -897,4 +897,4 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 if __name__ == "__main__":
     import os
     port = None if os.environ.get('SPACE_ID') else 7861
-    demo.launch(server_port=port, css=GRADIO_CSS)
+    demo.launch(server_port=port)
