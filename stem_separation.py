@@ -11,12 +11,12 @@ import soundfile as sf
 warnings.filterwarnings('ignore')
 
 # En HuggingFace Spaces con ZeroGPU, @spaces.GPU asigna GPU para la función.
-# Localmente, es un no-op transparente.
+# Localmente (sin el paquete spaces), es un no-op transparente.
 try:
-    import spaces as _hf_spaces
-    _gpu = _hf_spaces.GPU(duration=300)
-except Exception:
-    def _gpu(f): return f
+    import spaces
+except ImportError:
+    import types as _types
+    spaces = _types.SimpleNamespace(GPU=lambda **kw: (lambda f: f))
 
 # Caché de modelos en memoria — evita recargar el modelo entre análisis
 _MODEL_CACHE: dict = {}
@@ -113,7 +113,7 @@ def _load_stereo(path: str, target_sr: int) -> np.ndarray:
 
 # ── Función principal ─────────────────────────────────────────────────────────
 
-@_gpu
+@spaces.GPU(duration=300)
 def separate_stems(
     file_path: str,
     model_name: str = 'htdemucs',
