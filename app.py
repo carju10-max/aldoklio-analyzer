@@ -738,6 +738,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                 'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
                 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
                 'quiet': True, 'no_warnings': True,
+                'extractor_args': {'youtube': {'player_client': ['ios', 'tv']}},
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url.strip(), download=True)
