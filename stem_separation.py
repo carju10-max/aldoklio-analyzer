@@ -127,25 +127,23 @@ def separate_stems(
         raise ImportError("demucs no disponible. Instálalo con:\n  pip install demucs") from exc
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    cache_key = f"{model_name}_{device}"
 
-    if cache_key in _MODEL_CACHE:
-        model = _MODEL_CACHE[cache_key]
+    # Cache device-agnostic: apply_model maneja la transferencia al device internamente
+    if model_name in _MODEL_CACHE:
+        model = _MODEL_CACHE[model_name]
     else:
         model = get_model(model_name)
         model.eval()
-        model.to(device)
-        _MODEL_CACHE[cache_key] = model
+        _MODEL_CACHE[model_name] = model
 
     wav = _load_stereo(file_path, model.samplerate)
     ref_mean = float(wav.mean())
     ref_std  = float(wav.std()) + 1e-8
     wav_norm = (wav - ref_mean) / ref_std
 
-    tensor = torch.from_numpy(wav_norm).unsqueeze(0).to(device)
+    # Tensor en CPU — apply_model lo mueve al device internamente
+    tensor = torch.from_numpy(wav_norm).unsqueeze(0)
 
-    # segment=7.8 es el default de demucs — procesa en trozos pequeños internamente,
-    # mucho más rápido en GPU que nuestro chunking manual previo (~20-40s para 5min)
     with torch.no_grad():
         sources = apply_model(
             model, tensor,
