@@ -8,7 +8,15 @@ from datetime import datetime
 
 import numpy as np
 import gradio as gr
-from stem_separation import separate_stems as _sep_stems_preload  # noqa: F401 — registers @spaces.GPU at startup
+
+# ZeroGPU: HF detecta @spaces.GPU en el archivo principal al arrancar.
+# Se define aquí directamente para que el scanner estático lo encuentre.
+try:
+    import spaces
+    @spaces.GPU(duration=1)
+    def _gpu_warmup(): pass
+except ImportError:
+    pass
 
 # ── Library persistence ───────────────────────────────────────────────────────
 
