@@ -898,6 +898,6 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
 if __name__ == "__main__":
     import os
     if os.environ.get('SPACE_ID'):
-        demo.launch()   # HF Spaces: configuración por defecto
+        demo.launch(ssr_mode=False)  # HF: sin SSR que crashea el Node proxy
     else:
         demo.launch(server_port=7861, ssr_mode=False)  # local
