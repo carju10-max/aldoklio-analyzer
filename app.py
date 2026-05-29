@@ -13,7 +13,7 @@ import gradio as gr
 # Se define aquí directamente para que el scanner estático lo encuentre.
 try:
     import spaces
-    @spaces.GPU(duration=1)
+    @spaces.GPU(duration=60)
     def _gpu_warmup(): pass
 except ImportError:
     pass
