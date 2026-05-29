@@ -20,7 +20,10 @@ except ImportError:
 
 # ── Library persistence ───────────────────────────────────────────────────────
 
-LIBRARY_DIR  = Path(__file__).parent / "library"
+# /data persiste entre restarts en HF Spaces con Persistent Storage activado
+# Si no está disponible, cae a ./library/ (efímero)
+_DATA_ROOT   = Path("/data") if Path("/data").exists() else Path(__file__).parent
+LIBRARY_DIR  = _DATA_ROOT / "library"
 LIBRARY_JSON = LIBRARY_DIR / "index.json"
 
 STEMS_INFO_DISK = {
@@ -537,27 +540,17 @@ def build_library_html(library: list) -> str:
             f"<div style='color:#404040;font-size:.79rem'>{item.get('key_en', item.get('key','—'))}</div>"
             f"<div style='color:#404040;font-size:.79rem'>{ds}</div>"
             f"<div>"
-            f"<button onclick=\"selectItem('{iid}')\" style='"
+            f"<button onclick=\"(function(){{var el=document.getElementById('item-id-box');"
+            f"if(!el)return;var inp=(['INPUT','TEXTAREA'].includes(el.tagName))?el:(el.querySelector('input')||el.querySelector('textarea'));"
+            f"if(!inp)return;"
+            f"Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,'{iid}');"
+            f"inp.dispatchEvent(new InputEvent('input',{{bubbles:true,cancelable:true}}));}})()\" style='"
             f"background:transparent;border:1px solid #2a2a2a;color:#888;border-radius:6px;"
             f"padding:3px 12px;font-size:.72rem;cursor:pointer'>Abrir</button>"
             f"</div></div>"
         )
 
-    script = """
-    <script>
-    function selectItem(id){
-        const el=document.getElementById('item-id-box');
-        if(!el)return;
-        const inp=(['INPUT','TEXTAREA'].includes(el.tagName))?el:(el.querySelector('input')||el.querySelector('textarea'));
-        if(!inp)return;
-        const nv=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value');
-        nv.set.call(inp,id);
-        inp.dispatchEvent(new InputEvent('input',{bubbles:true,cancelable:true}));
-        inp.dispatchEvent(new Event('change',{bubbles:true}));
-    }
-    </script>"""
-
-    return header + f"<div>{rows}</div>" + script
+    return header + f"<div>{rows}</div>"
 
 
 # ── Log renderer ──────────────────────────────────────────────────────────────
