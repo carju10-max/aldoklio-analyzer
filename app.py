@@ -897,4 +897,4 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
 if __name__ == "__main__":
     import os
     port = None if os.environ.get('SPACE_ID') else 7861
-    demo.launch(server_port=port)
+    demo.launch(server_port=port, ssr_mode=False)
