@@ -2,7 +2,7 @@
 title: Aldo&Klio Analyzer
 emoji: 🎚️
 colorFrom: purple
-colorTo: black
+colorTo: gray
 sdk: streamlit
 sdk_version: 1.41.0
 app_file: app.py
