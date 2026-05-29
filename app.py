@@ -326,17 +326,18 @@ function makeMetroBuf(){const sr=AC.sampleRate,buf=AC.createBuffer(1,Math.ceil(s
 function scheduleMetro(from){
     if(!metroBuf)metroBuf=makeMetroBuf();
     const iv=60/(BPM*metroMult);
-    const firstBeat=BEAT_OFFSET%iv;
-    const relFrom=from-firstBeat;
-    const sb=Math.ceil(relFrom/iv),eb=Math.ceil((DURATION-firstBeat)/iv);
-    for(let b=sb;b<eb;b++){
-        const bt=firstBeat+b*iv;
+    const beatsPerBar=Math.round(TIMESIG*metroMult);
+    // índice del primer beat >= from, usando BEAT_OFFSET como ancla real
+    const n0=Math.ceil((from-BEAT_OFFSET)/iv);
+    const nEnd=Math.ceil((DURATION-BEAT_OFFSET)/iv);
+    for(let n=n0;n<nEnd;n++){
+        const bt=BEAT_OFFSET+n*iv;
         if(bt<0||bt>DURATION)continue;
         const st=AC.currentTime+(bt-from)/playRate;
         if(st<AC.currentTime+.01)continue;
         const src=AC.createBufferSource();src.buffer=metroBuf;src.playbackRate.value=playRate;
         const env=AC.createGain();
-        const beatInBar=Math.round((bt-BEAT_OFFSET)/iv)%Math.round(TIMESIG*metroMult);
+        const beatInBar=((n%beatsPerBar)+beatsPerBar)%beatsPerBar;
         const isA=beatInBar===0;
         const vol=(volumes['metro']||.7)*(isA?1:.5);
         env.gain.setValueAtTime(vol,st);env.gain.exponentialRampToValueAtTime(.001,st+.07);
