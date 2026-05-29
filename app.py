@@ -546,8 +546,14 @@ def build_library_html(library: list) -> str:
     script = """
     <script>
     function selectItem(id){
-        const tb = document.querySelector('#item-id-box input') || document.querySelector('#item-id-box textarea');
-        if(tb){tb.value=id;tb.dispatchEvent(new Event('input',{bubbles:true}));tb.dispatchEvent(new Event('change',{bubbles:true}))}
+        const el=document.getElementById('item-id-box');
+        if(!el)return;
+        const inp=(['INPUT','TEXTAREA'].includes(el.tagName))?el:(el.querySelector('input')||el.querySelector('textarea'));
+        if(!inp)return;
+        const nv=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value');
+        nv.set.call(inp,id);
+        inp.dispatchEvent(new InputEvent('input',{bubbles:true,cancelable:true}));
+        inp.dispatchEvent(new Event('change',{bubbles:true}));
     }
     </script>"""
 
