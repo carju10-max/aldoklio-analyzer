@@ -791,7 +791,7 @@ with gr.Blocks(css=GRADIO_CSS, title="Aldo&Klio Analyzer") as demo:
                 yield _prog()
                 from stem_separation import separate_stems
                 all_s = separate_stems(pending['path'], model_name=model_name,
-                                       progress_cb=lambda p,m: _log('info','Demucs',f"[{p}%] {m}"))
+                                       progress_cb=None)  # lambda no es picklable con ZeroGPU
                 stems = {k:v for k,v in all_s.items() if k in sel_stems}
                 _log('ok','Separación', f"{list(stems.keys())}")
                 yield _prog()
