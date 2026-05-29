@@ -537,8 +537,8 @@ def build_library_html(library: list) -> str:
     script = """
     <script>
     function selectItem(id){
-        const tb = document.querySelector('#item-id-box textarea');
-        if(tb){tb.value=id;tb.dispatchEvent(new Event('input',{bubbles:true}))}
+        const tb = document.querySelector('#item-id-box input') || document.querySelector('#item-id-box textarea');
+        if(tb){tb.value=id;tb.dispatchEvent(new Event('input',{bubbles:true}));tb.dispatchEvent(new Event('change',{bubbles:true}))}
     }
     </script>"""
 
@@ -707,7 +707,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
         )
 
     # ── Library navigation ────────────────────────────────────────────────────
-    add_btn.click(lambda _: _go(1), inputs=[library_st], outputs=[screens])
+    add_btn.click(lambda _: (_go(1), None, {}), inputs=[library_st], outputs=[screens, file_in, pending_st])
 
     back_new_btn.click(lambda lib: (_go(0), build_library_html(lib)),
                        inputs=[library_st], outputs=[screens, lib_html])
@@ -828,10 +828,12 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                     mp3_paths.append(tmp.name)
 
             d = results.get('duration',0)
+            proc_time = round(_time.monotonic()-t0,1)
             hdr = (f"<div><b style='font-size:.9rem'>{pending['name']}</b>"
                    f"<span style='color:#888;margin-left:8px;font-size:.75rem'>"
                    f"{results['key']['key_en']} · {results['tempo']['bpm']} BPM · "
-                   f"{int(d//60)}:{int(d%60):02d}</span></div>")
+                   f"{int(d//60)}:{int(d%60):02d}"
+                   f" · ⏱ {proc_time}s</span></div>")
 
             yield (
                 _go(3),
