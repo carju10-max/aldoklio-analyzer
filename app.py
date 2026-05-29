@@ -729,7 +729,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
     # ── YouTube download ──────────────────────────────────────────────────────
     def download_yt(url):
         if not url or not url.strip():
-            return "<p style='color:#f87171;font-size:.8rem'>Pega una URL de YouTube.</p>", {}, gr.update()
+            return "<p style='color:#f87171;font-size:.8rem'>Pega una URL de YouTube.</p>", {}
         try:
             import yt_dlp
             tmpdir = tempfile.mkdtemp()
@@ -742,20 +742,19 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url.strip(), download=True)
                 title = info.get('title', 'audio')
-            # buscar el mp3 descargado
             files = [f for f in os.listdir(tmpdir) if f.endswith('.mp3')]
             if not files:
-                return "<p style='color:#f87171;font-size:.8rem'>No se pudo descargar el audio.</p>", {}, gr.update()
+                return "<p style='color:#f87171;font-size:.8rem'>No se pudo descargar el audio.</p>", {}
             fp = os.path.join(tmpdir, files[0])
             mb = round(os.path.getsize(fp) / 1_048_576, 2)
-            name = files[0]
-            pending = {'path': fp, 'name': name, 'ext': 'mp3', 'size_mb': mb}
-            msg = f"<p style='color:#4ade80;font-size:.8rem'>✓ Descargado: <b>{title}</b> ({mb} MB)</p>"
-            return msg, pending, gr.update(value=fp)
+            pending = {'path': fp, 'name': files[0], 'ext': 'mp3', 'size_mb': mb}
+            msg = (f"<p style='color:#4ade80;font-size:.8rem'>✓ <b>{title}</b> — {mb} MB · "
+                   f"listo para analizar, da <b>Continuar →</b></p>")
+            return msg, pending
         except Exception as e:
-            return f"<p style='color:#f87171;font-size:.8rem'>Error: {e}</p>", {}, gr.update()
+            return f"<p style='color:#f87171;font-size:.8rem'>Error: {e}</p>", {}
 
-    yt_btn.click(download_yt, inputs=[yt_url_in], outputs=[yt_status, pending_st, file_in])
+    yt_btn.click(download_yt, inputs=[yt_url_in], outputs=[yt_status, pending_st])
 
     # ── File upload ───────────────────────────────────────────────────────────
     file_in.upload(_file_info, inputs=[file_in], outputs=[pending_st])
