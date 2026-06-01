@@ -288,7 +288,7 @@ def build_player_html(results: dict, audio_bytes: bytes, stems: dict | None = No
             mono = stem['audio_mono']
             step = max(1, len(mono) // 1600)
             wf   = [round(float(v), 4) for v in mono[::step]]
-            data, mime = _compress_to_mp3(stem['wav_bytes'])
+            data, mime = _compress_to_mp3(stem['wav_bytes'], '48k')  # 48k para player (menor tamaño)
             stems_list.append({
                 'key':  key,
                 'name': stem['name_es'],
@@ -300,7 +300,7 @@ def build_player_html(results: dict, audio_bytes: bytes, stems: dict | None = No
             })
         full_b64 = full_mime = ''
     else:
-        data, mime   = _compress_to_mp3(audio_bytes)
+        data, mime   = _compress_to_mp3(audio_bytes, '48k')  # 48k para player
         full_b64     = base64.b64encode(data).decode()
         full_mime    = mime
 
