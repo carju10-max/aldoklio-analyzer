@@ -375,6 +375,10 @@ canvas#pv{display:block}
 #tlph{position:absolute;top:0;bottom:0;width:1px;background:#a855f7;z-index:10;pointer-events:none;left:0;box-shadow:0 0 6px #a855f7}
 """
 
+    # Tiempos reales de beats — más precisos que BPM × offset fijo
+    raw_beat_times = results['tempo'].get('beat_times', [])
+    beat_times_json = json.dumps([round(float(t), 3) for t in raw_beat_times])
+
     js_data = (
         f"const STEMS={stems_json};\n"
         f"const CHORDS={chords_json};\n"
@@ -383,6 +387,7 @@ canvas#pv{display:block}
         f"const FULL_MIME='{full_mime}';\n"
         f"const BPM={bpm:.3f};\n"
         f"const BEAT_OFFSET={beat_offset:.3f};\n"
+        f"const BEAT_TIMES={beat_times_json};\n"
         f"const DURATION={duration:.3f};\n"
         f"const TIMESIG={time_sig};\n"
         f"const KEY_NAME='{key_name}';\n"
@@ -432,26 +437,39 @@ async function loadAll(){
 }
 
 function makeMetroBuf(){const sr=AC.sampleRate,buf=AC.createBuffer(1,Math.ceil(sr*.055),sr),ch=buf.getChannelData(0);for(let i=0;i<ch.length;i++){const t=i/sr;ch[i]=Math.sin(2*Math.PI*1100*t)*Math.exp(-t*55)}return buf}
+function _buildMetroTimes(mult){
+    if(!BEAT_TIMES||!BEAT_TIMES.length)return[];
+    if(mult===1)return BEAT_TIMES;
+    if(mult===0.5){// cada 2 beats
+        return BEAT_TIMES.filter((_,i)=>i%2===0);
+    }
+    // mult===2: añadir subdivisiones interpoladas entre cada par de beats
+    const out=[];
+    for(let i=0;i<BEAT_TIMES.length;i++){
+        out.push(BEAT_TIMES[i]);
+        if(i+1<BEAT_TIMES.length){
+            out.push((BEAT_TIMES[i]+BEAT_TIMES[i+1])/2);
+        }
+    }
+    return out;
+}
 function scheduleMetro(from){
     if(!metroBuf)metroBuf=makeMetroBuf();
-    const iv=60/(BPM*metroMult);
+    const times=_buildMetroTimes(metroMult);
+    if(!times.length)return;
     const beatsPerBar=Math.round(TIMESIG*metroMult);
-    // índice del primer beat >= from, nunca antes de BEAT_OFFSET (n>=0)
-    const n0=Math.max(0,Math.ceil((from-BEAT_OFFSET)/iv));
-    const nEnd=Math.ceil((DURATION-BEAT_OFFSET)/iv);
-    for(let n=n0;n<nEnd;n++){
-        const bt=BEAT_OFFSET+n*iv;
-        if(bt<0||bt>DURATION)continue;
+    times.forEach((bt,n)=>{
+        if(bt<from||bt>DURATION)return;
         const st=AC.currentTime+(bt-from)/playRate;
-        if(st<AC.currentTime+.01)continue;
+        if(st<AC.currentTime+.01)return;
         const src=AC.createBufferSource();src.buffer=metroBuf;src.playbackRate.value=playRate;
         const env=AC.createGain();
-        const beatInBar=((n%beatsPerBar)+beatsPerBar)%beatsPerBar;
+        const beatInBar=n%beatsPerBar;
         const isA=beatInBar===0;
         const vol=(volumes['metro']||.7)*(isA?1:.5);
         env.gain.setValueAtTime(vol,st);env.gain.exponentialRampToValueAtTime(.001,st+.07);
         src.connect(env);env.connect(metroGain);src.start(st);metroSrcs.push(src);
-    }
+    });
 }
 
 function startAll(){
