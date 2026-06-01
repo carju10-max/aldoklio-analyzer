@@ -605,7 +605,25 @@ window.addEventListener('resize',()=>setTimeout(drawAll,100));
     )
 
 
-# ── Library HTML ──────────────────────────────────────────────────────────────
+# ── Library dataframe ─────────────────────────────────────────────────────────
+
+def _lib_to_df(library: list):
+    rows, ids = [], []
+    for item in library:
+        dur = item.get('duration', 0)
+        ds  = f"{int(dur//60)}:{int(dur%60):02d}" if dur else '—'
+        rows.append([
+            item.get('filename', '—'),
+            (item.get('date_added', '') or '')[:10],
+            round(float(item.get('bpm') or 0), 1),
+            item.get('key_en', item.get('key', '—')),
+            ds,
+        ])
+        ids.append(item['id'])
+    return rows, ids
+
+
+# ── Library HTML (kept for reference) ─────────────────────────────────────────
 
 def build_library_html(library: list) -> str:
     if not library:
@@ -726,8 +744,10 @@ ALL_SCREENS = 4  # library, upload, instruments, detail
 
 with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
-    library_st = gr.State(_load_library())
-    pending_st = gr.State({})
+    _init_lib = _load_library()
+    _init_rows, _init_ids = _lib_to_df(_init_lib)
+    library_st  = gr.State(_init_lib)
+    pending_st  = gr.State({})
 
     gr.HTML("<div class='top-nav'><div class='top-nav-logo'>Aldo&amp;Klio<span> Analyzer</span></div></div>")
 
@@ -739,8 +759,13 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
             with gr.Row():
                 gr.HTML("<h2 style='font-size:1.2rem;font-weight:600;margin:0;padding:4px 0'>Separación de pistas</h2>")
                 add_btn = gr.Button("+ Agregar", variant="primary", scale=0, min_width=130)
-            lib_html    = gr.HTML(build_library_html(_load_library()))
-            item_id_box = gr.Textbox(elem_id="item-id-box", show_label=False, container=False)
+            lib_df = gr.Dataframe(
+                value=_init_rows,
+                headers=["Título", "Fecha", "BPM", "Tono", "Duración"],
+                datatype=["str", "str", "number", "str", "str"],
+                interactive=False, wrap=False, label=None,
+            )
+            item_ids_st = gr.State(_init_ids)
 
         # ── TAB 1: UPLOAD ────────────────────────────────────────────────────
         with gr.Tab("", id=1):
@@ -824,13 +849,13 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
     # ── Library navigation ────────────────────────────────────────────────────
     add_btn.click(lambda _: (_go(1), None, {}), inputs=[library_st], outputs=[screens, file_in, pending_st])
 
-    back_new_btn.click(lambda lib: (_go(0), build_library_html(lib)),
-                       inputs=[library_st], outputs=[screens, lib_html])
+    def _back_to_lib(lib):
+        rows, ids = _lib_to_df(lib)
+        return _go(0), rows, ids
 
+    back_new_btn.click(_back_to_lib, inputs=[library_st], outputs=[screens, lib_df, item_ids_st])
     back_instr_btn.click(lambda _: _go(1), inputs=[library_st], outputs=[screens])
-
-    back_detail_btn.click(lambda lib: (_go(0), build_library_html(lib)),
-                          inputs=[library_st], outputs=[screens, lib_html])
+    back_detail_btn.click(_back_to_lib, inputs=[library_st], outputs=[screens, lib_df, item_ids_st])
 
     # ── YouTube download ──────────────────────────────────────────────────────
     # ── File upload ───────────────────────────────────────────────────────────
@@ -872,7 +897,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                         'level': lv, 'step': step, 'msg': msg})
 
         def _prog():
-            return _go(2), _render_log(log), gr.update(), gr.update(), gr.update(visible=False), gr.update(), library
+            return _go(2), _render_log(log), gr.update(), gr.update(), gr.update(visible=False), gr.update(), library, gr.update(), gr.update()
 
         _log('info','Inicio', f"{pending['name']} | {pending['size_mb']:.1f} MB")
         yield _prog()
@@ -951,6 +976,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                    f"{int(d//60)}:{int(d%60):02d}"
                    f" · ⏱ {proc_time}s</span></div>")
 
+            rows, new_ids = _lib_to_df(library)
             yield (
                 _go(3),
                 "",
@@ -958,31 +984,33 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                 gr.update(value=player_html),
                 gr.update(value=mp3_paths or None, visible=bool(mp3_paths)),
                 gr.update(value=_kpi_html(results)),
-                library,
+                library, rows, new_ids,
             )
 
         except Exception as e:
             _log('error','Error', str(e))
-            yield _go(2), _render_log(log)+f"<p style='color:red;margin-top:8px'>{e}</p>", gr.update(), gr.update(), gr.update(visible=False), gr.update(), library
+            yield _go(2), _render_log(log)+f"<p style='color:red;margin-top:8px'>{e}</p>", gr.update(), gr.update(), gr.update(visible=False), gr.update(), library, gr.update(), gr.update()
 
     start_btn.click(
         run_analysis,
         inputs=[pending_st, stem_checks, library_st],
-        outputs=[screens, progress_out, detail_header, player_out, download_out, kpi_out, library_st],
+        outputs=[screens, progress_out, detail_header, player_out, download_out, kpi_out, library_st, lib_df, item_ids_st],
     )
 
     # ── Open library item ─────────────────────────────────────────────────────
-    def open_item(item_id, library):
-        if not item_id:
-            return _go(0), build_library_html(library), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+    def open_item(evt: gr.SelectData, ids, library):
+        if not ids or evt.index[0] >= len(ids):
+            return _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
 
+        item_id = ids[evt.index[0]]
         item = next((x for x in library if x['id'] == item_id), None)
         if item and item.get('results') is None:
             item = _load_item_from_disk(item_id)
-            library = [item if x['id'] == item_id else x for x in library]
+            if item:
+                library = [item if x['id'] == item_id else x for x in library]
 
         if item is None:
-            return _go(0), build_library_html(library), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+            return _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
 
         results = item.get('results')
         stems   = item.get('stems')
@@ -1006,9 +1034,10 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                f"{item.get('key_en','—')} · {item.get('bpm','—')} BPM · "
                f"{int(d//60)}:{int(d%60):02d}</span></div>")
 
+        rows, new_ids = _lib_to_df(library)
         return (
             _go(3),
-            build_library_html(library),
+            rows, new_ids,
             library,
             gr.update(value=hdr),
             gr.update(value=player_html),
@@ -1016,10 +1045,10 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
             gr.update(value=_kpi_html(results) if results else ""),
         )
 
-    item_id_box.change(
+    lib_df.select(
         open_item,
-        inputs=[item_id_box, library_st],
-        outputs=[screens, lib_html, library_st, detail_header, player_out, download_out, kpi_out],
+        inputs=[item_ids_st, library_st],
+        outputs=[screens, lib_df, item_ids_st, library_st, detail_header, player_out, download_out, kpi_out],
     )
 
 
