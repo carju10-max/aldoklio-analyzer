@@ -385,8 +385,8 @@ class MusicAnalyzer:
         _, beats = librosa.beat.beat_track(y=self.y, sr=self.sr, hop_length=HOP)
 
         if len(beats) >= 4:
-            # Agrupar de 2 en 2 beats → segmentos de ~1 compás, mucho más estables
-            beat_groups = beats[::2]
+            # Beat a beat — detecta cambios de acorde cada beat (no cada 2)
+            beat_groups = beats
             times_sync  = librosa.frames_to_time(beat_groups, sr=self.sr, hop_length=HOP)
             chroma_sync = librosa.util.sync(chroma, beat_groups, aggregate=np.median)
         else:
@@ -417,8 +417,8 @@ class MusicAnalyzer:
                     best_score, best = score, name
             raw_chords.append(best if best_score >= MIN_SCORE else 'N/C')
 
-        # ── 6. Suavizado fuerte — ventana de ±5 ──────────────────────────────
-        W = 5
+        # ── 6. Suavizado moderado — ventana de ±1 ────────────────────────────
+        W = 1
         smoothed: list[str] = []
         for i in range(len(raw_chords)):
             window     = raw_chords[max(0, i - W): i + W + 1]
@@ -428,7 +428,7 @@ class MusicAnalyzer:
             )
 
         # ── 7. Extraer cambios + filtrar duración mínima (1 segundo) ─────────
-        MIN_DUR = 1.0   # acordes que duran menos de 1 s = artefacto, se descarta
+        MIN_DUR = 0.3   # acordes que duran menos de 0.3 s = artefacto, se descarta
 
         raw_changes: list[dict] = []
         prev = None
