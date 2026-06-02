@@ -1017,10 +1017,17 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
 
     # ── Open library item ─────────────────────────────────────────────────────
     def open_item(evt: gr.SelectData, ids, library):
+        _loading = "<div style='text-align:center;padding:3rem;color:#444;font-size:.85rem'>Cargando pistas desde biblioteca…</div>"
+
         if not ids or evt.index[0] >= len(ids):
-            return _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+            yield _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+            return
 
         item_id = ids[evt.index[0]]
+
+        # Mostrar pantalla de detalle con loading mientras carga
+        yield _go(3), gr.update(), gr.update(), library, gr.update(value=""), gr.update(value=_loading), gr.update(visible=False), gr.update(value="")
+
         item = next((x for x in library if x['id'] == item_id), None)
         if item and item.get('results') is None:
             item = _load_item_from_disk(item_id)
@@ -1028,7 +1035,8 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                 library = [item if x['id'] == item_id else x for x in library]
 
         if item is None:
-            return _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+            yield _go(0), gr.update(), gr.update(), library, gr.update(), gr.update(), gr.update(visible=False), gr.update()
+            return
 
         results = item.get('results')
         stems   = item.get('stems')
@@ -1053,7 +1061,7 @@ with gr.Blocks(title="Aldo&Klio Analyzer") as demo:
                f"{int(d//60)}:{int(d%60):02d}</span></div>")
 
         rows, new_ids = _lib_to_df(library)
-        return (
+        yield (
             _go(3),
             rows, new_ids,
             library,
