@@ -253,15 +253,15 @@ class MusicAnalyzer:
         """Detecta el BPM y las posiciones de cada pulso."""
         onset_env = librosa.onset.onset_strength(y=self.y, sr=self.sr, hop_length=512)
         tempo_arr, beats = librosa.beat.beat_track(
-            onset_envelope=onset_env, sr=self.sr, hop_length=512
+            onset_envelope=onset_env, sr=self.sr, hop_length=512, start_bpm=90
         )
         tempo = float(np.atleast_1d(tempo_arr)[0])
 
-        # Librosa suele devolver el doble del BPM real en canciones lentas.
-        # Normalizamos al rango 60–160 BPM que cubre prácticamente toda la música.
-        while tempo > 160:
+        # Normalizar al rango 60–120 BPM (pulso humano percibido).
+        # start_bpm=90 ya sesga hacia tempos reales, pero por si acaso:
+        while tempo > 120:
             tempo /= 2
-            beats = beats[::2]   # adelgazar beats para que coincidan
+            beats = beats[::2]
         while tempo < 60:
             tempo *= 2
 
